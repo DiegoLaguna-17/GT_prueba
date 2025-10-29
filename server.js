@@ -2,17 +2,20 @@ const express = require('express');
 const supabase = require('./database');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
-const cors=require('cors')
+const cors = require('cors');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const  multer =require('multer');
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 app.use(express.json());
+
 app.use(cors({
   origin: 'http://localhost:4200',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-// ENDPOINTS 
 
 // Endpoint POST para registrar médicos
 app.post('/registrar_medico', async (req, res) => {
@@ -107,62 +110,25 @@ app.post('/registrar_paciente', async (req, res) => {
         rol,
         fecha_nac,
         teléfono,
-        nombre_medico,
-        nivel_actividad,
+        id_medico,
+        id_actividad,
         genero,
         peso,
         altura,
+        enfermedad_id,
+        tratamiento_id,
+        dosis_
     } = req.body;
 
-    if (!nombre_completo || !correo || !contrasena || !rol || !fecha_nac || !teléfono || !nombre_medico || !nivel_actividad || !genero || !peso || !altura) {
+    if (!nombre_completo || !correo || !contrasena || !rol || !fecha_nac || !teléfono || !id_medico || !id_actividad || !genero || !peso || !altura
+       ||!enfermedad_id||!tratamiento_id||!dosis_)  {
         return res.status(400).json({ error: 'Todos los campos deben ser llenados' });
     }
 
     try {
         
         // Primero buscar la equivalencia de nivel de actividad
-        const { data: nivelData, error: nivelError } = await supabase
-            .from("nivel_actividad_fisica")
-            .select("id_nivel_actividad")
-            .eq("descripcion", nivel_actividad)
-            .single();
-
-        if (nivelError) throw nivelError;
-        
-        if (!nivelData) {
-            return res.status(404).json({ error: `Nivel de actividad ${nivel_actividad} no encontrado` });
-        }
-
-        const id_nivel_actividad = nivelData.id_nivel_actividad;
-
-        // Luego la equivalencia del médico
-        const { data: usuarioData, error: usuarioError } = await supabase
-            .from("usuario")
-            .select("id_usuario")
-            .eq("nombre_completo", nombre_medico)
-            .single();
-
-        if (usuarioError) throw usuarioError;
-
-        if (!usuarioData) {
-            return res.status(404).json({ error: `Usuario con nombre: ${nombre_medico} no encontrado` });
-        }
-
-        const id_usuario = usuarioData.id_usuario;
-
-        const { data: medicoData, error: medicoError } = await supabase
-            .from("medico")
-            .select("id_medico")
-            .eq("id_usuario", id_usuario)
-            .single();
-
-        if (medicoError) throw medicoError;
-
-        if (!medicoData) {
-            return res.status(404).json({ error: `Médico con id de usuario: ${id_usuario} no encontrado` });
-        }
-
-        const id_medico = medicoData.id_medico;
+    
 
         // Luego hasheo
         const saltRounds = 10;
@@ -191,7 +157,7 @@ app.post('/registrar_paciente', async (req, res) => {
                 {
                     id_usuario: usuario_insertado.id_usuario,
                     id_medico: id_medico,
-                    id_nivel_actividad: id_nivel_actividad,
+                    id_nivel_actividad: id_actividad,
                     genero,
                     peso,
                     altura
@@ -201,6 +167,23 @@ app.post('/registrar_paciente', async (req, res) => {
         if (pacienteError) throw pacienteError;
 
         const paciente = pacienteData[0];
+
+       const {data:dataTratamiento,error:errorTratamiento}=await supabase
+       .from('tratamiento_enfermedad').insert({
+            id_paciente:paciente.id_paciente,
+            id_tratamiento:tratamiento_id,
+            dosis:dosis_
+       });
+       if(errorTratamiento)throw errorTratamiento;
+
+       const {data:dataEnfermedad, error: errorEnfermedad}=await supabase
+       .from('paciente_enfermedad').
+       insert({
+          id_paciente:paciente.id_paciente,
+          id_enfermedad:enfermedad_id,
+       })
+
+       if(errorEnfermedad)throw errorEnfermedad;
 
         res.status(200).json({
             message: 'Usuario y paciente registrados correctamente',
@@ -214,7 +197,6 @@ app.post('/registrar_paciente', async (req, res) => {
     }
 });
 
-
 // Endpoint GET para obtener todos los médicos
 app.get('/ver_medicos', async (req, res) => {
     try {
@@ -222,7 +204,7 @@ app.get('/ver_medicos', async (req, res) => {
             .from("medico")
             .select(`
                 id_medico,
-                usuario ( id_usuario, nombre_completo )
+                usuario ( nombre_completo )
             `);
         
             if (error) throw error;
@@ -233,22 +215,6 @@ app.get('/ver_medicos', async (req, res) => {
         res.status(500).json({ error: 'Error al obtener médicos' });
     }
 });
-
-
-// ENDPOINT DE PRUEBA
-app.get('/get_medico_por_nombre', async (req, res) => {
-    const {
-        nombre_completo
-    } = req.body;
-
-    const { data, error } = await supabase
-        .from("medico")
-        .select("id_medico")
-        .eq("nombre_completo", nombre_completo)
-});
-
-
-
 
 // ENDPOINT para obtener todos los medicos activos (admitidos)
 app.get('/medicos_activos', async (req, res) => {
@@ -321,8 +287,6 @@ app.put('/activar-medico/:idMedico', async (req, res) => {
     res.status(500).json({ error: 'Error del servidor', detalles: err.message });
   }
 });
-
-
 
 //ENDPOINT para obtener todos los pacientes activos (admitidos)
 app.get('/pacientes_activos',async (req, res) => {
@@ -424,7 +388,6 @@ app.get('/perfil_medico/:idUsuario', async (req, res) => {
   }
 })
 
-
 // ENDPOINT para obtener el perfil de un administrador en base al ID_USUARIO
 app.get('/perfil_admin/:idUsuario', async (req, res) => {
   try {
@@ -474,6 +437,7 @@ app.get("/ver_pacientes/:idMedico", async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });
+
 // ENDPOINT para obtener las alertas activas en base al ID_MEDICO
 app.get('/alertas_activas_medico/:idMedico', async (req, res) => {
   try {
@@ -495,6 +459,116 @@ app.get('/alertas_activas_medico/:idMedico', async (req, res) => {
   }
 });
 
+// Endpoint POST para login
+app.post('/login', async (req, res) => {
+    const { correo, contrasena } = req.body;
+
+    const { data: usuarioData, error: usuarioError } = await supabase
+        .from("usuario")
+        .select("id_usuario, correo, contrasena, rol")
+        .eq("correo", correo).eq("estado", true); 
+
+    if (usuarioError) throw usuarioError;
+
+    if (!usuarioData) {
+        return res.status(401).json({ error: `No se encontró ningún usuario con correo: ${correo}` });
+    }
+
+    const usuario = usuarioData[0];
+    const id_usuario = usuario.id_usuario;
+    const rol = usuario.rol;
+    let id_rol = 0;
+
+    if (rol === "administrador") {
+        const { data: adminData, error: adminError } = await supabase
+            .from("administrador")
+            .select("id_admin")
+            .eq("id_usuario", id_usuario)
+            .single();
+        if (adminError) throw adminError;
+
+        id_rol = adminData.id_admin;
+
+    } else if (rol === "medico") {
+        const { data: medicoData, error: medicoError } = await supabase
+            .from("medico")
+            .select("id_medico")
+            .eq("id_usuario", id_usuario)
+            .single();
+        if(medicoError) throw medicoError;
+
+        id_rol = medicoData.id_medico;
+
+    } else {
+        const { data: pacienteData, error: pacienteError } = await supabase
+            .from("paciente")
+            .select("id_paciente")
+            .eq("id_usuario", id_usuario)
+            .single();
+        if (pacienteError) throw pacienteError;
+
+        id_rol = pacienteData.id_paciente;
+    }
+
+    const isMatch = await bcrypt.compare(String(contrasena), usuario.contrasena);
+
+    if (!isMatch) {
+        return res.status(401).json({ error: 'Contraseña incorrecta' });
+    }
+
+    res.status(200).json({
+        message: "Credenciales correctas, login exitoso",
+        id_usuario: id_usuario,
+        id_rol: id_rol,
+        rol: rol
+    });
+});
+
+// Endpoint POST para registrar glucosa
+app.post('/registrar_glucosa', async (req, res) => {
+    const {
+      fecha,
+      hora, 
+      id_medico,
+      id_momento,
+      id_paciente,
+      nivel_glucosa,
+      observaciones
+    } = req.body;
+
+    if (!fecha || !hora || !id_medico || !id_momento || !id_paciente || !nivel_glucosa) {
+      return res.status(400).json({ error: "Todos los campos (menos observaciones) deben estar llenados" });
+    }
+
+    try {
+      const { data: glucosaData, error: glucosaError } = await supabase
+        .from("registro_glucosa")
+        .insert([
+          {
+            id_paciente: id_paciente,
+            id_medico: id_medico,
+            id_momento: id_momento,
+            fecha: fecha,
+            hora: hora,
+            nivel_glucosa: nivel_glucosa,
+            observaciones: observaciones
+          }
+        ]).select();
+
+      if (glucosaError) throw glucosaError;
+
+      const registro_glucosa = glucosaData[0];
+
+      res.status(200).json({
+        message: "Registro insertado correctamente",
+        registro_glucosa
+      });
+
+    } catch (error) {
+      console.error("Error al insertar los datos: ", error.message);
+      res.status(500).json({ error: error.message });
+    }
+});
 
 app.get('/ver_momentos', async (req, res) => {
     try {
@@ -556,7 +630,151 @@ app.get('/alertas_resueltas_medico/:idMedico', async (req, res) => {
 });
 
 
+app.get('/perfil_paciente/:id', async (req, res) => {
+  const idPaciente = parseInt(req.params.id);
 
+  try {
+    const { data, error } = await supabase
+      .rpc('obtener_paciente_por_id', { id_paciente_input: idPaciente });
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (err) {
+    console.error('Error al obtener paciente:', err);
+    res.status(500).json({ error: 'Error al obtener paciente' });
+  }
+});
+
+
+
+
+
+
+app.get('/niveles_actividad',async (req,res)=>{
+  try{
+    const {data,error}=await supabase
+    .from('nivel_actividad_fisica').select('id_nivel_actividad,descripcion')
+    if (error) throw error;
+
+            res.status(200).json(data);
+    } catch (error) {
+        console.error('Error al obtener niveles de actividad: ', error.message);
+        res.status(500).json({ error: 'Error al obtener actividades' });
+    }
+  
+});
+
+app.get('/obtener_enfermedades',async (req,res)=>{
+  try{
+    const {data,error}=await supabase
+    .from('enfermedades_base').select('id_enfermedad,nombre_enfermedad')
+    if (error) throw error;
+
+            res.status(200).json(data);
+    } catch (error) {
+        console.error('Error al obtener enfermedades: ', error.message);
+        res.status(500).json({ error: 'Error al obtener enfermedades' });
+    }
+  
+});
+
+app.get('/obtener_tratamientos',async (req,res)=>{
+  try{
+    const {data,error}=await supabase
+    .from('tratamientos').select('id_tratamiento,nombre_tratamiento,descripcion')
+    if (error) throw error;
+
+            res.status(200).json(data);
+    } catch (error) {
+        console.error('Error al obtener tratamientos: ', error.message);
+        res.status(500).json({ error: 'Error al obtener tratamientos' });
+    }
+});
+
+
+
+
+
+app.get('/obtener_especialidades',async (req,res)=>{
+  try{
+    const {data,error}=await supabase
+    .from('especialidad').select('id_especialidad,nombre')
+    if (error) throw error;
+
+            res.status(200).json(data);
+    } catch (error) {
+        console.error('Error al obtener tratamientos: ', error.message);
+        res.status(500).json({ error: 'Error al obtener tratamientos' });
+    }
+});
+
+
+
+app.post("/registrar_medicos", upload.fields([
+  { name: "matriculaProfesional", maxCount: 1 },
+  { name: "carnetProfesional", maxCount: 1 },
+]), async (req, res) => {
+  try {
+    const { nombre_completo, correo, contrasena, telefono, fecha_nac,id_especialidad ,departamento} = req.body;
+    const pdf = req.files["matriculaProfesional"]?.[0];
+    const img = req.files["carnetProfesional"]?.[0];
+
+    // subir archivos a Supabase
+    const pdfUpload = await supabase.storage
+      .from("Matriculas_PDF")
+      .upload(`pdfs/${Date.now()}_${pdf.originalname}`, pdf.buffer, {
+        contentType: pdf.mimetype,
+      });
+
+    const imgUpload = await supabase.storage
+      .from("Carnets_IMG")
+      .upload(`imgs/${Date.now()}_${img.originalname}`, img.buffer, {
+        contentType: img.mimetype,
+      });
+
+    // verificar errores en subida
+    if (pdfUpload.error) throw pdfUpload.error;
+    if (imgUpload.error) throw imgUpload.error;
+
+    // URLs públicas
+    const pdfUrl = supabase.storage.from("Matriculas_PDF").getPublicUrl(pdfUpload.data.path).data.publicUrl;
+    const imgUrl = supabase.storage.from("Carnets_IMG").getPublicUrl(imgUpload.data.path).data.publicUrl;
+      const rol='medico'
+    // insertar datos en la BD (según tu esquema)
+    const { data, error } = await supabase
+      .from("usuario")
+      .insert([
+        {
+          nombre_completo,
+          correo,
+          contrasena,
+          rol,
+          "teléfono":telefono,
+          fecha_nac,
+          
+        },
+      ]).select();
+
+
+    if (error) throw error;
+    const usuario=data[0];
+    const {data:medicoData,error:errorMedico}=await supabase
+    .from('medico')
+    .insert([{
+      id_usuario:usuario.id_usuario,
+      id_especialidad:id_especialidad,
+      matricula_profesional:pdfUrl,
+      departamento: departamento,
+      carnet_profesional:imgUrl,
+      administrador_id_admin:1
+    }])
+    res.status(200).json({ mensaje: "Médico registrado correctamente", data });
+  } catch (error) {
+    console.error("❌ Error en /registrar_medicos:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
