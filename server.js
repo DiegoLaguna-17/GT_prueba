@@ -221,6 +221,7 @@ app.get('/ver_medicos', async (req, res) => {
         const { data, error } = await supabase
             .from("medico")
             .select(`
+                id_medico,
                 usuario ( id_usuario, nombre_completo )
             `);
         
@@ -249,7 +250,7 @@ app.get('/get_medico_por_nombre', async (req, res) => {
 
 
 
-
+// ENDPOINT para obtener todos los medicos activos (admitidos)
 app.get('/medicos_activos', async (req, res) => {
   try {
     const { data, error } = await supabase.rpc('get_medicos_activos')
@@ -266,6 +267,7 @@ app.get('/medicos_activos', async (req, res) => {
   }
 })
 
+// ENDPOINT para obtener todos los medicos solicitantes (no admitidos)
 app.get('/medicos_solicitantes', async (req, res) => {
   try {
     const { data, error } = await supabase.rpc('get_medicos_solicitantes')
@@ -281,6 +283,8 @@ app.get('/medicos_solicitantes', async (req, res) => {
     return res.status(500).json({ error: 'Error del servidor' })
   }
 });
+
+// ENDPOINT para activar un medico solicitante (admitirlo)
 app.put('/activar-medico/:idMedico', async (req, res) => {
   const idMedico = req.params.idMedico;
 
@@ -320,7 +324,7 @@ app.put('/activar-medico/:idMedico', async (req, res) => {
 
 
 
-
+//ENDPOINT para obtener todos los pacientes activos (admitidos)
 app.get('/pacientes_activos',async (req, res) => {
   try {
     const { data, error } = await supabase.rpc('obtener_pacientes_activos')
@@ -337,7 +341,7 @@ app.get('/pacientes_activos',async (req, res) => {
   }
 });
 
-
+// ENDPOINT para obtener todos los pacientes solicitantes (no admitidos)
 app.get('/pacientes_solicitantes',async (req, res) => {
   try {
     const { data, error } = await supabase.rpc('obtener_pacientes_solicitantes')
@@ -354,7 +358,7 @@ app.get('/pacientes_solicitantes',async (req, res) => {
   }
 });
 
-
+// ENDPOINT para activar un paciente solicitante (admitirlo)
 app.put('/activar-paciente/:idPaciente', async (req, res) => {
   const idPaciente = req.params.idPaciente;
 
@@ -392,7 +396,164 @@ app.put('/activar-paciente/:idPaciente', async (req, res) => {
   }
 });
 
+// ENDPOINT para obtener el perfil de un medico en base al ID_MEDICO
+app.get('/perfil_medico/:idUsuario', async (req, res) => {
+  try {
+    const idUsuario = parseInt(req.params.idUsuario)
 
+    // Llamada a la función RPC con el parámetro
+    const { data, error } = await supabase.rpc('obtener_medico_por_usuario', {
+      id_usuario_input: idUsuario
+    })
+
+    if (error) {
+      console.error('Error ejecutando función:', error)
+      return res.status(500).json({ error: error.message })
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ message: 'No se encontró el médico' })
+    }
+
+    // ✅ Devuelve el resultado como JSON
+    return res.status(200).json(data[0]) // devuelve el objeto (no arreglo)
+    
+  } catch (err) {
+    console.error('Error interno:', err)
+    return res.status(500).json({ error: 'Error del servidor' })
+  }
+})
+
+
+// ENDPOINT para obtener el perfil de un administrador en base al ID_USUARIO
+app.get('/perfil_admin/:idUsuario', async (req, res) => {
+  try {
+    const idUsuario = parseInt(req.params.idUsuario);
+
+    const { data, error } = await supabase.rpc('obtener_admin_por_usuario', {
+      id_usuario_input: idUsuario
+    });
+
+    if (error) {
+      console.error('Error ejecutando función:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ message: 'No se encontró el administrador' });
+    }
+
+    return res.status(200).json(data[0]); // devuelve el objeto directamente
+  } catch (err) {
+    console.error('Error interno:', err);
+    return res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+//Obtener los pacientes activos de un medico en base al ID_MEDICO
+app.get("/ver_pacientes/:idMedico", async (req, res) => {
+  const { idMedico } = req.params;
+
+  try {
+    // 🔹 Ejecutar la función SQL
+    const { data, error } = await supabase.rpc("obtener_pacientes_por_medico", {
+      id_medico_input: parseInt(idMedico),
+    });
+
+    if (error) throw error;
+
+    // 🔹 Si no hay datos, devolvemos vacío
+    if (!data || data.length === 0) {
+      return res.status(404).json({ mensaje: "No se encontraron pacientes." });
+    }
+
+    // 🔹 La función devuelve un arreglo JSON directamente
+    res.json(data);
+  } catch (err) {
+    console.error("Error ejecutando función:", err.message);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+// ENDPOINT para obtener las alertas activas en base al ID_MEDICO
+app.get('/alertas_activas_medico/:idMedico', async (req, res) => {
+  try {
+    const idMedico = parseInt(req.params.idMedico);
+
+    const { data, error } = await supabase.rpc('obtener_alertas_activas_por_medico', {
+      id_medico_input: idMedico
+    });
+
+    if (error) {
+      console.error('Error ejecutando función:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('Error interno:', err);
+    return res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+
+app.get('/ver_momentos', async (req, res) => {
+    try {
+        const { data, error } = await supabase
+            .from("momento_dia")
+            .select(`
+                id_momento, momento 
+            `);
+        
+            if (error) throw error;
+
+            res.status(200).json(data);
+    } catch (error) {
+        console.error('Error al obtener momentos: ', error.message);
+        res.status(500).json({ error: 'Error al obtener momentos' });
+    }
+});
+
+
+app.get('/registros_paciente/:idPaciente', async (req, res) => {
+  try {
+    const idPaciente = parseInt(req.params.idPaciente);
+
+    const { data, error } = await supabase.rpc('obtener_registros_por_paciente', {
+      id_paciente_input: idPaciente
+    });
+
+    if (error) {
+      console.error('Error ejecutando función:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('Error interno:', err);
+    return res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+
+app.get('/alertas_resueltas_medico/:idMedico', async (req, res) => {
+  try {
+    const idMedico = parseInt(req.params.idMedico);
+
+    const { data, error } = await supabase.rpc('obtener_alertas_resueltas_por_medico', {
+      id_medico_input: idMedico
+    });
+
+    if (error) {
+      console.error('Error ejecutando función:', error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error('Error interno:', err);
+    return res.status(500).json({ error: 'Error del servidor' });
+  }
+});
 
 
 
