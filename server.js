@@ -12,11 +12,11 @@ const upload = multer({ storage });
 app.use(express.json());
 
 app.use(cors({
-  origin: 'http://localhost:4200',
+  origin: ['*'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
+/*
 // Endpoint POST para registrar médicos
 app.post('/registrar_medico', async (req, res) => {
     const { 
@@ -198,6 +198,7 @@ app.post('/registrar_paciente', async (req, res) => {
 });
 
 // Endpoint GET para obtener todos los médicos
+
 app.get('/ver_medicos', async (req, res) => {
     try {
         const { data, error } = await supabase
@@ -231,7 +232,7 @@ app.get('/medicos_activos', async (req, res) => {
     console.error('Error interno:', err)
     return res.status(500).json({ error: 'Error del servidor' })
   }
-})
+});
 
 // ENDPOINT para obtener todos los medicos solicitantes (no admitidos)
 app.get('/medicos_solicitantes', async (req, res) => {
@@ -287,7 +288,13 @@ app.put('/activar-medico/:idMedico', async (req, res) => {
     res.status(500).json({ error: 'Error del servidor', detalles: err.message });
   }
 });
+*/
 
+
+
+
+
+/*
 //ENDPOINT para obtener todos los pacientes activos (admitidos)
 app.get('/pacientes_activos',async (req, res) => {
   try {
@@ -304,7 +311,6 @@ app.get('/pacientes_activos',async (req, res) => {
     return res.status(500).json({ error: 'Error del servidor' })
   }
 });
-
 // ENDPOINT para obtener todos los pacientes solicitantes (no admitidos)
 app.get('/pacientes_solicitantes',async (req, res) => {
   try {
@@ -386,9 +392,10 @@ app.get('/perfil_medico/:idUsuario', async (req, res) => {
     console.error('Error interno:', err)
     return res.status(500).json({ error: 'Error del servidor' })
   }
-})
+});*/
 
 // ENDPOINT para obtener el perfil de un administrador en base al ID_USUARIO
+/*
 app.get('/perfil_admin/:idUsuario', async (req, res) => {
   try {
     const idUsuario = parseInt(req.params.idUsuario);
@@ -412,8 +419,10 @@ app.get('/perfil_admin/:idUsuario', async (req, res) => {
     return res.status(500).json({ error: 'Error del servidor' });
   }
 });
-
+*/
 //Obtener los pacientes activos de un medico en base al ID_MEDICO
+// 
+/*
 app.get("/ver_pacientes/:idMedico", async (req, res) => {
   const { idMedico } = req.params;
 
@@ -437,8 +446,9 @@ app.get("/ver_pacientes/:idMedico", async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });
-
+*/
 // ENDPOINT para obtener las alertas activas en base al ID_MEDICO
+/*
 app.get('/alertas_activas_medico/:idMedico', async (req, res) => {
   try {
     const idMedico = parseInt(req.params.idMedico);
@@ -458,7 +468,7 @@ app.get('/alertas_activas_medico/:idMedico', async (req, res) => {
     return res.status(500).json({ error: 'Error del servidor' });
   }
 });
-
+*/
 // Endpoint POST para login
 app.post('/login', async (req, res) => {
     const { correo, contrasena } = req.body;
@@ -525,6 +535,7 @@ app.post('/login', async (req, res) => {
 });
 
 // Endpoint POST para registrar glucosa
+/*
 app.post('/registrar_glucosa', async (req, res) => {
     const {
       fecha,
@@ -608,7 +619,6 @@ app.get('/registros_paciente/:idPaciente', async (req, res) => {
   }
 });
 
-
 app.get('/alertas_resueltas_medico/:idMedico', async (req, res) => {
   try {
     const idMedico = parseInt(req.params.idMedico);
@@ -646,11 +656,11 @@ app.get('/perfil_paciente/:id', async (req, res) => {
   }
 });
 
+*/
 
 
 
-
-
+/*
 app.get('/niveles_actividad',async (req,res)=>{
   try{
     const {data,error}=await supabase
@@ -691,10 +701,10 @@ app.get('/obtener_tratamientos',async (req,res)=>{
         res.status(500).json({ error: 'Error al obtener tratamientos' });
     }
 });
+*/
 
 
-
-
+/*
 
 app.get('/obtener_especialidades',async (req,res)=>{
   try{
@@ -742,13 +752,15 @@ app.post("/registrar_medicos", upload.fields([
     const imgUrl = supabase.storage.from("Carnets_IMG").getPublicUrl(imgUpload.data.path).data.publicUrl;
       const rol='medico'
     // insertar datos en la BD (según tu esquema)
+    const saltRounds = 10;
+    const hashed_contrasena = await bcrypt.hash(contrasena, saltRounds);
     const { data, error } = await supabase
       .from("usuario")
       .insert([
         {
           nombre_completo,
           correo,
-          contrasena,
+          contrasena:hashed_contrasena,
           rol,
           "teléfono":telefono,
           fecha_nac,
@@ -775,6 +787,18 @@ app.post("/registrar_medicos", upload.fields([
     res.status(500).json({ error: error.message });
   }
 });
+*/
+const medicoRoutes = require('./src/routes/medico.routes');
+app.use('/api/medicos', medicoRoutes);
+
+const pacienteRoutes=require('./src/routes/pacientes.routes');
+app.use('/api/pacientes',pacienteRoutes);
+
+const adminRoutes=require('./src/routes/admin.routes');
+app.use('/api/administradores',adminRoutes);
+
+const generalRoutes=require('./src/routes/general.routes');
+app.use('/api/general',generalRoutes);
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });
