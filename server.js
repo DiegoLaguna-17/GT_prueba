@@ -12,7 +12,7 @@ const upload = multer({ storage });
 app.use(express.json());
 
 app.use(cors({
-  origin: ['*'],
+  origin: ['https://gluco-tracker-front.vercel.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
