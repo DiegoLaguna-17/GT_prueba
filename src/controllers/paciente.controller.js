@@ -104,7 +104,7 @@ const perfilPaciente=async (req, res) => {
 
   try {
     const { data, error } = await supabase
-      .rpc('obtener_paciente_por_id', { id_paciente_input: idPaciente });
+      .rpc('obtener_paciente_por_id', { id_usuario_input: idPaciente });
 
     if (error) throw error;
 
@@ -137,50 +137,54 @@ const registrosPaciente= async (req, res) => {
 
 
 
-const registrarGlucosa= async (req, res) => {
-    const {
-      fecha,
-      hora, 
-      id_medico,
-      id_momento,
-      id_paciente,
-      nivel_glucosa,
-      observaciones
-    } = req.body;
+const registrarGlucosa = async (req, res) => {
+  const {
+    fecha,
+    hora,
+    id_medico,
+    id_momento,
+    id_paciente,
+    nivel_glucosa,
+    observaciones
+  } = req.body;
 
-    if (!fecha || !hora || !id_medico || !id_momento || !id_paciente || !nivel_glucosa) {
-      return res.status(400).json({ error: "Todos los campos (menos observaciones) deben estar llenados" });
-    }
+  if (!fecha || !hora || !id_medico || !id_momento || !id_paciente || !nivel_glucosa) {
+    return res.status(400).json({ error: "Todos los campos (menos observaciones) deben estar llenados" });
+  }
 
-    try {
-      const { data: glucosaData, error: glucosaError } = await supabase
-        .from("registro_glucosa")
-        .insert([
-          {
-            id_paciente: id_paciente,
-            id_medico: id_medico,
-            id_momento: id_momento,
-            fecha: fecha,
-            hora: hora,
-            nivel_glucosa: nivel_glucosa,
-            observaciones: observaciones
-          }
-        ]).select();
+  try {
+    const { data: glucosaData, error: glucosaError } = await supabase
+      .from("registro_glucosa")
+      .insert([
+        {
+          id_paciente,
+          id_medico,
+          id_momento,
+          fecha,
+          hora,
+          nivel_glucosa,
+          observaciones
+        }
+      ])
+      .select(); // devuelve el registro insertado
 
-      if (glucosaError) throw glucosaError;
+    if (glucosaError) throw glucosaError;
 
-      const registro_glucosa = glucosaData[0];
+    const registro_glucosa = glucosaData[0]; // el primer registro insertado
 
-      res.status(200).json({
-        message: "Registro insertado correctamente",
-        registro_glucosa
-      });
+    // Retornar el ID generado
+    res.status(200).json({
+      message: "Registro insertado correctamente",
+      id_registro: registro_glucosa.id, // ⚠️ asumimos que la columna PK es "id"
+      registro_glucosa
+    });
 
-    } catch (error) {
-      console.error("Error al insertar los datos: ", error.message);
-      res.status(500).json({ error: error.message });
-    }
+  } catch (error) {
+    console.error("Error al insertar los datos: ", error.message);
+    res.status(500).json({ error: error.message });
+  }
 };
+
 
 
 module.exports={perfilPaciente,registrosPaciente,registrarGlucosa,registrarPaciente};

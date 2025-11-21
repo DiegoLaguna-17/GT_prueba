@@ -12,7 +12,7 @@ const upload = multer({ storage });
 app.use(express.json());
 
 app.use(cors({
-  origin: ['https://gluco-tracker-front.vercel.app'],
+  origin: ['http://localhost:4200','*'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -470,7 +470,7 @@ app.get('/alertas_activas_medico/:idMedico', async (req, res) => {
 });
 */
 // Endpoint POST para login
-app.post('/login', async (req, res) => {
+app.post('/api/login', async (req, res) => {
     const { correo, contrasena } = req.body;
 
     const { data: usuarioData, error: usuarioError } = await supabase
@@ -796,6 +796,9 @@ app.use('/api/pacientes',pacienteRoutes);
 
 const adminRoutes=require('./src/routes/admin.routes');
 app.use('/api/administradores',adminRoutes);
+
+const registroRoutes=require('./src/routes/registro.routes');
+app.use('/api/registro', registroRoutes);
 
 const generalRoutes=require('./src/routes/general.routes');
 app.use('/api/general',generalRoutes);

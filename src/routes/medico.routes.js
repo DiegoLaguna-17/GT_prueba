@@ -6,7 +6,7 @@ const multer = require('multer');
 
 
 const { registrarMedico,verMedicos,medicosActivos,medicosSolicitantes,activarMedico, 
-    perfilMedico, verPacientes, alertasActivas, alertasResueltas} = require('../controllers/medico.controller');
+    perfilMedico, verPacientes, alertasActivas, alertasResueltas,retroalimentacionAlerta} = require('../controllers/medico.controller');
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -15,6 +15,8 @@ router.post('/registrar', upload.fields([
   { name: "matriculaProfesional", maxCount: 1 },
   { name: "carnetProfesional", maxCount: 1 },
 ]), registrarMedico);
+
+router.post('/responder/alerta',retroalimentacionAlerta);
 
 router.get('/perfil/:idUsuario',perfilMedico);
 router.get('/ver', verMedicos);

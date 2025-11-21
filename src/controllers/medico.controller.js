@@ -197,6 +197,53 @@ const alertasResueltas= async (req, res) => {
 };
 
 
+const retroalimentacionAlerta = async (req, res) => {
+  const { id_medico, fecha_registro, mensaje, alertas_id_alerta } = req.body;
+
+  if (!id_medico || !fecha_registro || !mensaje || !alertas_id_alerta) {
+    return res.status(400).json({ error: 'Todos los campos son requeridos' });
+  }
+
+  try {
+    // 1. INSERT en Retroalimentacion
+    const { data: retroData, error: retroError } = await supabase
+      .from('retroalimentacion')
+      .insert([
+        {
+          id_medico,
+          fecha_registro,
+          mensaje,
+          alertas_id_alerta
+        }
+      ])
+      .select();   // Para devolver la fila insertada
+
+    if (retroError) throw retroError;
+
+    // 2. UPDATE en Alertas, poniendo su estado = false
+    const { data: alertaUpdate, error: alertaError } = await supabase
+      .from('alertas')
+      .update({ estado: false })
+      .eq('id_alerta', alertas_id_alerta)
+      .select();
+
+    if (alertaError) throw alertaError;
+
+    return res.status(200).json({
+      message: 'Alerta respondida y actualizada correctamente',
+      retroalimentacion: retroData,
+      alerta_actualizada: alertaUpdate
+    });
+
+  } catch (err) {
+    console.error('Error al responder alerta:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+
 // ✅ export correcto
 module.exports = { verMedicos, 
-    perfilMedico, registrarMedico, verPacientes, alertasActivas,alertasResueltas};
+    perfilMedico, registrarMedico, verPacientes, alertasActivas,alertasResueltas,retroalimentacionAlerta};
